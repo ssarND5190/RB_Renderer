@@ -1,28 +1,5 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!114 &-7520842060089545338
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d200c57313ecada4182fa9b54fa5a5a8, type: 3}
-  m_Name: SSR
-  m_EditorClassIdentifier: 
-  m_Active: 0
-  mSettings:
-    Intensity: 0.566
-    MaxDistance: 72.6
-    Stride: 8
-    StepCount: 4
-    Thickness: 3.48
-    BinaryCount: 4
-    jitterDither: 1
-    blendMode: 0
-    BlurRadius: 0.94
 --- !u!114 &-2331202968415129479
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -90,12 +67,10 @@ MonoBehaviour:
     hdrDebugViewPS: {fileID: 4800000, guid: 573620ae32aec764abd4d728906d2587, type: 3}
   m_RendererFeatures:
   - {fileID: -1878332245247344467}
-  - {fileID: -7520842060089545338}
   - {fileID: 8919011703653016811}
   - {fileID: -2331202968415129479}
-  - {fileID: 423861027844960616}
   - {fileID: 8548706707411775194}
-  m_RendererFeatureMap: adc0de57c6d2eee586ad8b54fe99a097eb24cab7e3b1c67b79b0476040e7a5df68b1d4ee5bdbe105da2e4718751ba376
+  m_RendererFeatureMap: adc0de57c6d2eee5eb24cab7e3b1c67b79b0476040e7a5dfda2e4718751ba376
   m_UseNativeRenderPass: 0
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   xrSystemData: {fileID: 11400000, guid: 60e1133243b97e347b653163a8c01b64, type: 2}
@@ -144,19 +119,6 @@ MonoBehaviour:
   m_CopyDepthMode: 0
   m_AccurateGbufferNormals: 0
   m_IntermediateTextureMode: 1
---- !u!114 &423861027844960616
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 452bf2c603bc59b40b5617b0961509e1, type: 3}
-  m_Name: Blur
-  m_EditorClassIdentifier: 
-  m_Active: 0
 --- !u!114 &8548706707411775194
 MonoBehaviour:
   m_ObjectHideFlags: 0
