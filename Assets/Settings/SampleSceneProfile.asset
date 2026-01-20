@@ -93,7 +93,7 @@ MonoBehaviour:
     m_Value: {r: 0.52803844, g: 0.6679245, b: 0.6161149, a: 1}
   BlurTimes:
     m_OverrideState: 1
-    m_Value: 3
+    m_Value: 2
   BlurRange:
     m_OverrideState: 1
     m_Value: 0
