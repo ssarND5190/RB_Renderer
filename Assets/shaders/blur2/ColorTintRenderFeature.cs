@@ -22,6 +22,7 @@
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using System.Collections.Generic;
 
 //【用于渲染管线设置里的用户界面】
 //一个feature，一个pass
@@ -75,6 +76,8 @@ public class ColorTintPass : ScriptableRenderPass
 
     int[] downSampleRT;
     int[] upSampleRT;
+
+    Vector4[] lightDataArray;
 
     //【渲染事件】
     #region RenderEvent
@@ -157,20 +160,67 @@ public class ColorTintPass : ScriptableRenderPass
         upSampleRT = new int[colorTint.BlurTimes.value];
 
         int originalTexId = Shader.PropertyToID("_OriginalTex");
-cmd.GetTemporaryRT(originalTexId, inRTDesc.width, inRTDesc.height);
+cmd.GetTemporaryRT(originalTexId, inRTDesc.width, inRTDesc.height, 0, FilterMode.Point, RenderTextureFormat.ARGB32);
 cmd.Blit(source, originalTexId); // 备份原始图像
 cmd.SetGlobalTexture("_OriginalTex", originalTexId);
+
+        int tempSourceId = Shader.PropertyToID("_TempSourceTex");
+        cmd.GetTemporaryRT(tempSourceId, inRTDesc.width, inRTDesc.height, 0, FilterMode.Point, RenderTextureFormat.ARGB32);
+        cmd.Blit(source, tempSourceId); // 备份原始图像到临时纹理
+        //cmd.SetGlobalTexture("_TempSourceTex", tempSourceId);
         
         colorTintMaterial.SetColor("_ColorTint", colorTint.colorChange.value);
         colorTintMaterial.SetFloat("_BlurRange", colorTint.BlurRange.value);//汇入颜色校正
         colorTintMaterial.SetFloat("_FogHalfLifeDistance", colorTint.FogHalfLifeDistance.value);//汇入雾气半衰距离
 
+        //Light Handle
+        // 清空列表
+            lightDataArray = new Vector4[8];
+            int lightCount=0;
+            
+            // 获取所有可见灯光
+            var visibleLights = renderingData.lightData.visibleLights;
+            
+            foreach (var visibleLight in visibleLights)
+            {
+                if (visibleLight.lightType == LightType.Point)
+                {
+                    // 获取灯光的世界位置
+                    Vector3 position = visibleLight.localToWorldMatrix.GetColumn(3);
+                    float range = visibleLight.range;
+                    
+                    // 打包位置和范围到Vector4
+                    lightDataArray[lightCount] = new Vector4(position.x, position.y, position.z, range);
+                    lightCount++;
+                    if(position.x<=10&&position.y<=10&&position.z<=10)
+                    {
+                       // Debug.Log("Light Position:"+position.ToString()+" Range:"+range.ToString());
+                    }
+                }
+            }
+            
+            // 传递到Shader
+            if (lightCount > 0)
+            {
+                // 传递数量
+                colorTintMaterial.SetInt("_CustomPointLightCount", lightCount);
+                
+                // 传递位置数组
+                for (int i = 0; i < lightCount; i++)
+                {
+                    colorTintMaterial.SetVectorArray("_CustomPointLightPositions", lightDataArray);
+                }
+                
+                // 或者使用ComputeBuffer（更高效）
+                // 这里简单起见使用多个Vector4
+            }
+
         cmd.SetGlobalTexture(MainTexId, source);
-        cmd.GetTemporaryRT (destination, tw, th, 0, FilterMode.Trilinear, RenderTextureFormat.Default);
+        cmd.GetTemporaryRT (destination, tw, th, 0, FilterMode.Trilinear, RenderTextureFormat.ARGB32);
         //设置color tint render target
 
         cmd.Blit(source, destination);
-        cmd.Blit(destination, source, colorTintMaterial, 0);//叠一次ColorTint，第一个pass
+        cmd.Blit(destination, tempSourceId, colorTintMaterial, 0);//叠一次ColorTint，第一个pass
 
         for(int i = 0; i < colorTint.BlurTimes.value; i++)
         {
@@ -178,13 +228,13 @@ cmd.SetGlobalTexture("_OriginalTex", originalTexId);
             upSampleRT[i] = Shader.PropertyToID("UpSample" + i);//临时图像
         }
 
-        RenderTargetIdentifier tmpRT = sourceRT;
+        RenderTargetIdentifier tmpRT = tempSourceId;
 
         //DownSample
         for (int i = 0; i < colorTint.BlurTimes.value; i++)
         {
-            cmd.GetTemporaryRT(downSampleRT[i], tw, th, 0, FilterMode.Bilinear, RenderTextureFormat.Default);
-            cmd.GetTemporaryRT(upSampleRT[i], tw, th, 0, FilterMode.Bilinear, RenderTextureFormat.Default);//在down时，顺便把up也申请了
+            cmd.GetTemporaryRT(downSampleRT[i], tw, th, 0, FilterMode.Bilinear, RenderTextureFormat.ARGB32);
+            cmd.GetTemporaryRT(upSampleRT[i], tw, th, 0, FilterMode.Bilinear, RenderTextureFormat.ARGB32);//在down时，顺便把up也申请了
             tw = Mathf.Max(tw / 2, 1);
             th = Mathf.Max(th / 2, 1);
         
@@ -199,7 +249,7 @@ cmd.SetGlobalTexture("_OriginalTex", originalTexId);
             cmd.Blit(tmpRT, upSampleRT[j], colorTintMaterial, 3);
             tmpRT = upSampleRT[j];
         }
-
+        if(colorTint.BlurTimes.value > 0)
         cmd.Blit(tmpRT, source, colorTintMaterial, 4);
 
         // //final pass

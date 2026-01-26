@@ -27,6 +27,7 @@ struct v2f_DualBlurUp
     float4 vertex:SV_POSITION;
 };
 
+
 //================
 
 sampler2D _MainTex;
@@ -48,6 +49,9 @@ float blurrange_y;
 
 float4 _MainTex_TexelSize;
 
+int _CustomPointLightCount;
+uniform float4 _CustomPointLightPositions[8];
+
 v2f ColorTintVert (appdata v)
 {
     v2f o;
@@ -60,8 +64,11 @@ v2f ColorTintVert (appdata v)
 float4 ColorTintFrag (v2f i):SV_TARGET
 {
     float4 col = tex2D(_MainTex, i.uv);
-    //float depth = tex2D(_CameraDepthTexture, i.uv).r;
+    float depth = tex2D(_CameraDepthTexture, i.uv).r;
+    float linearEyeDepth = LinearEyeDepth(depth, _ZBufferParams);
+    float attenuation = 1.0 - exp2(-linearEyeDepth / _FogHalfLifeDistance);
     //float4 col = float4(depth, depth, depth, 1);
+    col.a = attenuation;
     return col;
 }
 
@@ -181,13 +188,51 @@ v2f MixVert (appdata v)
 float4 MixFrag (v2f i):SV_TARGET
 {
     float4 col = tex2D(_MainTex, i.uv);
+    float alp = col.a;
     float4 originalCol = tex2D(_OriginalTex, i.uv);
     float4 mistyColor = _ColorTint;
     float depth = tex2D(_CameraDepthTexture, i.uv).r;
-    float linearEyeDepth = LinearEyeDepth(depth, _ZBufferParams);
-    float halfLifeDistance = _FogHalfLifeDistance;
-    float attenuation = 1.0 - exp2(-linearEyeDepth / halfLifeDistance);
-    col = lerp(originalCol, col, attenuation);
-    col = lerp(col, mistyColor, attenuation);
-    return col;
+    //float linearEyeDepth = LinearEyeDepth(depth, _ZBufferParams);
+    //float halfLifeDistance = _FogHalfLifeDistance;
+    //float attenuation = 1.0 - exp2(-linearEyeDepth / halfLifeDistance);
+
+    // 重建世界位置
+    float3 worldPos = ComputeWorldSpacePosition(i.uv, depth, UNITY_MATRIX_I_VP);
+    // 摄像机方向
+    float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
+    Light mainLight = GetMainLight();
+
+    // Sun light
+    float dotSun = dot(viewDir, mainLight.direction);
+    float dotSunPlus = dotSun * 0.5 + 0.5;
+    dotSunPlus = pow(dotSunPlus, 2);
+
+    // Multi light support (optional)
+    int addLightsCount = GetAdditionalLightsCount();
+    float4 addcolor = float4(0,0,0,0);
+    for (int lt = 0; lt < addLightsCount; lt++)
+    {
+        Light addlight = GetAdditionalLight(lt, worldPos); // 获取每个额外光源的信息
+        float3 lightPos_w = _CustomPointLightPositions[lt];
+        float3 lightPos_v = mul(unity_WorldToCamera, float4(lightPos_w,1)).xyz;
+        float4 lightPos_c = mul(unity_CameraProjection, float4(lightPos_v,1));
+        float3 lightPos = lightPos_c.xyz / -lightPos_c.w;
+        lightPos = lightPos * 0.5 + 0.5;
+        lightPos.z=0;
+        // Z: near=1, far=0
+        float strength = 80.0;
+        float distance = length(float3(i.uv, 0)*strength - lightPos*strength);
+        addcolor += 1.0/(distance*distance + 1.0);
+        //return float4(lightPos_w, 1);
+    }
+
+    mistyColor = 1.0 - (1.0 - mistyColor) * (1.0 - dotSunPlus*0.2);
+    mistyColor *= alp * dotSun * 0.5 + 0.5;
+
+    col = lerp(originalCol, col, alp*alp); //blur mix
+    col = lerp(col, mistyColor, alp); //color tint mix
+
+    //if(_CustomPointLightCount<3)return float4(1,0,0,1);
+    
+    return col+addcolor;
 }
